@@ -51,9 +51,7 @@ router.route('/moments/:photo_id/getSelectedData').get(function (req, res) {
 });
 
 function getPhotoId(metadata){
-    console.log(metadata.body.id);
     var photoid = metadata.body.id;
-    console.log("id = "+photoid)
     return photoid
 
 }
@@ -61,13 +59,17 @@ function getPhotoId(metadata){
 function getPhotoSource(metadata){
 
     var photoSrc = metadata.body.service_type;
-    console.log("src = "+photoSrc)
     return photoSrc
 }
 
 function checkProcessed(assistantInputs){
 
-    return true
+	var what = assistantInputs.what;
+	var who = assistantInputs.who;
+	var where = assistantInputs.where;
+	var why = assistantInputs.why;
+	var when = assistantInputs.when;
+    return (what!=null && who!=null && where!=null && why!=null && when!=null); 
 }
 
 function checkAccessible(metadata){
@@ -75,70 +77,57 @@ function checkAccessible(metadata){
 }
 
 function getImageURL(metadata){
-    return "test"
+    return metadata.body.webViewLink;
 }
 
 function getWDataGoogle(metadata){
-    var firstName = "John";
-    var lastName = "Smith";
-    var employee = {
-        "firstName": firstName,
-        "lastName": lastName
-    }
 
-    return employee
+	var location = metadata.body.imageMediaMetadata.location;
+    if(location!=null){
+        var lat = location.latitude;
+        var long = location.longitude;
+    }
+    var time = metadata.body.imageMediaMetadata.time;
+    console.log("time = "+time);
+    var whereobj = {"latitude": lat, "longitude": long};
+    return {"when": time, "where": whereobj};
 }
 
 
 function getSelectedDataGoogle(metadata){
-    var firstName = "John";
-    var lastName = "Smith";
-    var employee = {
-        "firstName": firstName,
-        "lastName": lastName
-    }
-
-    return employee
+    return {}
 }
 
 function getWData(metadata, src){
 
     if(src == "google")
         return getWDataGoogle(metadata)
-    //else if(source == "Facebook")
-      //  return getWDataFacebook(metadata);
 }
 
 function getSelectedData(metadata, src){
 
     if(src == "google")
         return getSelectedDataGoogle(metadata)
-    //else if(source == "Facebook")
-      //  return getSelectedDataFacebook(metadata);
 }
 
 function getMLData(metadata){
-    var firstName = "John";
-    var lastName = "Smith";
-    var employee = {
-        "firstName": firstName,
-        "lastName": lastName
-    }
-
-    return employee
+    return {}
 }
 
 router.route('/moments').post(function (req, res) {
     var p = new moment();
-    var id = getPhotoId(req);
-    var src = getPhotoSource(req);
-    p.photoIndex = id;
-    p.photoId = src+"_"+id
-    p.assistantInputs = getWData(req, src);
+    //var obj = JSON.parse(JSON.stringify(req))
+    p.photoIndex = req.body.id;
+    p.photoId = req.body.service_type+"_"+req.body.id;
+
+    p.assistantInputs = getWData(req, req.body.service_type);
+    //p.assistantInputs = {}
     p.MLInputs = getMLData(req);
-    p.chosenMetadata = getSelectedData(req, src);
-    p.rawMetadata = req;
-    p.photoSource = src;
+    //p.MLInputs = {};
+    p.chosenMetadata = getSelectedData(req, req.body.service_type);
+    //p.chosenMetadata = {}; 
+    p.rawMetadata = {};
+    p.photoSource = req.body.service_type;
     p.isProcessed = checkProcessed(p.assistantInputs);
     p.isAccessible = checkAccessible(req);
     p.imageURL = getImageURL(req);
@@ -149,6 +138,7 @@ router.route('/moments').post(function (req, res) {
     })
     .catch(err => {
         console.error(err.message);
+        console.error(err.stack);
         res.status(400).send({ error: err })
         //res.status(400).send("unable to save to database");
     });
